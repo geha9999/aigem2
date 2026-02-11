@@ -1,35 +1,41 @@
-# AIGEM2
+# Project Documentation
 
-Local-First AI-Powered Productivity Application
+## Overview
+This project is designed to … 
 
-## Project Status
-🚧 Under Development
+## Features
+### FREE Tier
+- Feature 1 Description
+- Feature 2 Description
 
-## Description
-AIGEM2 is a privacy-first, AI-powered productivity application designed for professionals and content creators.
+### STARTER Tier
+- Feature 1 Description
+- Feature 2 Description
 
-### Key Features (Planned)
-- 📝 Knowledge Base with Semantic Search
-- 🎥 Video Downloader & Transcription
-- 🎙️ Screen/Audio Recording
-- 🤖 AI Assistant (Local & Cloud)
-- 📊 Meeting Notes & Auto-Notulen
-- 🌍 Multi-language (EN/ID)
-- 🎨 Dark/Light Themes
+### PRO Tier
+- Feature 1 Description
+- Feature 2 Description
 
-### Pricing Tiers
-- **FREE**: Basic features
-- **PRO**: $49 one-time (local AI, all offline features)
-- **PREMIUM**: $19/month (cloud AI, advanced features)
+### PREMIUM Tier
+- Feature 1 Description
+- Feature 2 Description
+
+## Installation Instructions
+1. Step 1
+2. Step 2
+3. Step 3
 
 ## Tech Stack
-- Python 3.11+
-- Streamlit (UI)
-- Vercel + Supabase (Backend)
-- Local LLM Support (Ollama)
+- Technology 1
+- Technology 2
 
-## License
-Proprietary - All Rights Reserved
+## Pricing Table
+| Tier     | Price   |
+|----------|---------|
+| FREE     | $0      |
+| STARTER  | $X      |
+| PRO      | $Y      |
+| PREMIUM   | $Z      |
 
----
-Built with ❤️ for privacy-conscious professionals
+## Contact Info
+For more information, please contact ….

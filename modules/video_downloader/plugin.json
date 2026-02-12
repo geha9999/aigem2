@@ -1,0 +1,11 @@
+{
+  "id": "video_downloader",
+  "name": "Video Downloader",
+  "version": "1.0.0",
+  "description": "Download videos from YouTube and other platforms",
+  "tier_required": "STARTER",
+  "entry_point": "ui.py:VideoDownloaderUI",
+  "dependencies": ["yt-dlp"],
+  "author": "AIGEM2 Team",
+  "icon": "🎥"
+}

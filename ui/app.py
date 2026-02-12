@@ -1,108 +1,91 @@
 """
-Main Streamlit App with Lazy Module Loading
+AIGEM2 Main Application Controller
+Handles navigation, state management, and module loading
 """
 import streamlit as st
+from typing import Optional
+import sys
 from pathlib import Path
 
+# Add parent directory to path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from config import AppConfig
+from ui.theme import ThemeManager
+from i18n.loader import I18nLoader
+from modules.plugin_manager import PluginManager
+
 class MainApp:
-    """Main application with modular architecture"""
+    """Main application controller"""
     
-    def __init__(self, config, license_status):
+    def __init__(self, config: AppConfig, license_tier: str):
         self.config = config
-        self.tier = license_status
-        self.modules_loaded = {}
+        self.license_tier = license_tier
+        self.theme = ThemeManager()
+        self.i18n = I18nLoader()
+        self.plugin_manager = PluginManager(config, license_tier)
+        
+        # Initialize session state
+        if 'current_page' not in st.session_state:
+            st.session_state.current_page = 'dashboard'
+        if 'language' not in st.session_state:
+            st.session_state.language = 'en'
+        if 'theme_mode' not in st.session_state:
+            st.session_state.theme_mode = 'dark'
     
     def run(self):
-        """Run main application"""
-        # Apply custom CSS
-        self._apply_theme()
+        """Main application loop"""
         
-        # Sidebar navigation
-        self._render_sidebar()
+        # Apply theme
+        self.theme.apply(st.session_state.theme_mode)
         
-        # Main content area
-        self._render_main_content()
+        # Load translations
+        t = self.i18n.load(st.session_state.language)
+        
+        # Render header
+        self._render_header(t)
+        
+        # Render sidebar
+        self._render_sidebar(t)
+        
+        # Render main content
+        self._render_content(t)
     
-    def _apply_theme(self):
-        """Apply custom theme (Dark/Light)"""
-        # Get theme from session state (default: dark)
-        theme = st.session_state.get('theme', 'dark')
+    def _render_header(self, t):
+        """Render top header bar"""
+        col1, col2, col3, col4 = st.columns([3, 1, 1, 1])
         
-        # Load theme CSS
-        css_file = Path(__file__).parent / 'styles' / f'{theme}_theme.css'
+        with col1:
+            st.markdown("# 💎 AIGEM2")
         
-        if css_file.exists():
-            st.markdown(f'<style>{{css_file.read_text()}}</style>', unsafe_allow_html=True)
-    
-    def _render_sidebar(self):
-        """Render sidebar navigation"""
-        with st.sidebar:
-            st.title("🎯 AIGEM2")
-            
+        with col2:
             # Theme toggle
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("🌙" if st.session_state.get('theme') == 'light' else "☀️"):
-                    st.session_state.theme = 'light' if st.session_state.get('theme') == 'dark' else 'dark'
-                    st.rerun()
-            
-            with col2:
-                lang = st.selectbox("🌍", ["EN", "ID"], label_visibility="collapsed")
+            theme_icon = "🌙" if st.session_state.theme_mode == "dark" else "☀️"
+            if st.button(theme_icon, key="theme_toggle"):
+                st.session_state.theme_mode = "light" if st.session_state.theme_mode == "dark" else "dark"
+                st.rerun()
+        
+        with col3:
+            # Language selector
+            lang = st.selectbox(
+                "Lang",
+                options=["en", "id"],
+                format_func=lambda x: "🇬🇧 EN" if x == "en" else "🇮🇩 ID",
+                key="language_selector",
+                label_visibility="collapsed"
+            )
+            if lang != st.session_state.language:
                 st.session_state.language = lang
-            
-            st.divider()
-            
-            # Navigation menu
-            menu_items = self._get_menu_items()
-            
-            for item in menu_items:
-                icon = item['icon']
-                label = item['label']
-                module_id = item['module_id']
-                tier_required = item.get('tier_required', 'FREE')
-                
-                # Check if user has access
-                if self._has_access(tier_required):
-                    if st.button(f"{icon} {label}", key=module_id, use_container_width=True):
-                        st.session_state.current_module = module_id
-                else:
-                    st.button(
-                        f"🔒 {label}", 
-                        key=module_id, 
-                        disabled=True,
-                        use_container_width=True,
-                        help=f"Requires {tier_required} tier"
-                    )
-            
-            st.divider()
-            
+                st.rerun()
+        
+        with col4:
             # Tier badge
             self._render_tier_badge()
-    
-    def _get_menu_items(self):
-        """Get navigation menu items"""
-        return [
-            {"icon": "🏠", "label": "Dashboard", "module_id": "dashboard", "tier_required": "FREE"},
-            {"icon": "📚", "label": "Knowledge Base", "module_id": "knowledge_base", "tier_required": "FREE"},
-            {"icon": "🎥", "label": "Video Downloader", "module_id": "video_downloader", "tier_required": "STARTER"},
-            {"icon": "🎙️", "label": "Transcription", "module_id": "transcription", "tier_required": "STARTER"},
-            {"icon": "🖥️", "label": "Screen Recorder", "module_id": "screen_recorder", "tier_required": "PRO"},
-            {"icon": "🤖", "label": "AI Assistant", "module_id": "ai_assistant", "tier_required": "PRO"},
-            {"icon": "📋", "label": "Meeting Notes", "module_id": "meeting_notes", "tier_required": "PRO"},
-            {"icon": "🔄", "label": "Content Tools", "module_id": "content_tools", "tier_required": "PREMIUM"},
-            {"icon": "🔌", "label": "Plugins", "module_id": "plugins", "tier_required": "FREE"},
-            {"icon": "⚙️", "label": "Settings", "module_id": "settings", "tier_required": "FREE"},
-        ]
-    
-    def _has_access(self, tier_required: str) -> bool:
-        """Check if user tier has access to feature"""
-        tier_levels = {"FREE": 0, "STARTER": 1, "PRO": 2, "PREMIUM": 3}
-        user_level = tier_levels.get(self.tier, 0)
-        required_level = tier_levels.get(tier_required, 0)
-        return user_level >= required_level
+        
+        st.divider()
     
     def _render_tier_badge(self):
-        """Render current tier badge"""
+        """Render tier badge"""
         tier_colors = {
             "FREE": "#6B7280",
             "STARTER": "#3B82F6",
@@ -110,136 +93,132 @@ class MainApp:
             "PREMIUM": "#F59E0B"
         }
         
-        color = tier_colors.get(self.tier, "#6B7280")
+        color = tier_colors.get(self.license_tier, "#6B7280")
         
         st.markdown(f"""
-        <div style=\"
-            background: {color};
-            color: white;
-            padding: 8px;
-            border-radius: 8px;
+        <div style="
+            background: {color}20;
+            border: 1px solid {color};
+            border-radius: 6px;
+            padding: 4px 12px;
             text-align: center;
+            font-size: 12px;
             font-weight: 600;
-            margin-top: 16px;
-        ">
-            {self.tier} TIER
+            color: {color};
+        }">
+            {self.license_tier}
         </div>
         """, unsafe_allow_html=True)
-        
-        if self.tier != "PREMIUM":
-            if st.button("✨ Upgrade", use_container_width=True):
-                st.session_state.current_module = "upgrade"
     
-    def _render_main_content(self):
-        """Render main content area (lazy load modules)"""
-        current_module = st.session_state.get('current_module', 'dashboard')
-        
-        # Show loading spinner
-        with st.spinner(f'Loading {current_module}...'):
-            self._load_module(current_module)
+    def _render_sidebar(self, t):
+        """Render sidebar navigation"""
+        with st.sidebar:
+            st.markdown("### 📚 " + t.get("modules", "Modules"))
+            
+            # Get available plugins
+            plugins = self.plugin_manager.get_available_plugins()
+            
+            for plugin_id, plugin_info in plugins.items():
+                # Check if user has access
+                is_locked = not self.plugin_manager.can_access_plugin(plugin_id)
+                
+                # Render menu item
+                icon = plugin_info.get("icon", "📦")
+                name = plugin_info.get("name", plugin_id)
+                
+                if is_locked:
+                    st.markdown(f"{icon} {name} 🔒", help=f"Requires {plugin_info.get('tier_required', 'PRO')} tier")
+                else:
+                    if st.button(f"{icon} {name}", key=f"nav_{plugin_id}", use_container_width=True):
+                        st.session_state.current_page = plugin_id
+                        st.rerun()
+            
+            st.divider()
+            
+            # Settings
+            if st.button("⚙️ " + t.get("settings", "Settings"), key="nav_settings", use_container_width=True):
+                st.session_state.current_page = "settings"
+                st.rerun()
+            
+            # Upgrade button for non-PREMIUM users
+            if self.license_tier != "PREMIUM":
+                st.markdown("---")
+                if st.button("⭐ " + t.get("upgrade", "Upgrade"), key="upgrade_button", use_container_width=True, type="primary"):
+                    st.session_state.current_page = "upgrade"
+                    st.rerun()
     
-    def _load_module(self, module_id: str):
-        """Lazy load module on demand"""
-        # Check if already loaded
-        if module_id in self.modules_loaded:
-            module = self.modules_loaded[module_id]
-            module.render()
+    def _render_content(self, t):
+        """Render main content area"""
+        current_page = st.session_state.current_page
+        
+        if current_page == "dashboard":
+            self._render_dashboard(t)
+        elif current_page == "settings":
+            self._render_settings(t)
+        elif current_page == "upgrade":
+            self._render_upgrade(t)
+        else:
+            # Load plugin
+            self._render_plugin(current_page, t)
+    
+    def _render_dashboard(self, t):
+        """Render dashboard page"""
+        from ui.pages.dashboard import render_dashboard
+        render_dashboard(self.config, self.license_tier, t)
+    
+    def _render_settings(self, t):
+        """Render settings page"""
+        from ui.pages.settings import render_settings
+        render_settings(self.config, self.license_tier, t)
+    
+    def _render_upgrade(self, t):
+        """Render upgrade page"""
+        st.markdown("## ⭐ " + t.get("upgrade_title", "Upgrade Your Plan"))
+        
+        st.markdown(t.get("upgrade_description", "Unlock more features with a paid plan!"))
+        
+        # Show tier comparison
+        tiers = self.config._config.get("tiers", {})
+        
+        cols = st.columns(len(tiers))
+        
+        for idx, (tier_name, tier_data) in enumerate(tiers.items()):
+            with cols[idx]:
+                st.markdown(f"### {tier_name}")
+                
+                if tier_data.get("price_idr", 0) == 0:
+                    st.markdown("**FREE**")
+                else:
+                    st.markdown(f"**Rp {tier_data['price_idr']:,}** / year")
+                
+                st.markdown("---")
+                
+                features = tier_data.get("features", {})
+                for feature, enabled in features.items():
+                    if enabled:
+                        st.markdown(f"✅ {feature.replace('_', ' ').title()}")
+                
+                if tier_name != self.license_tier and tier_data.get("price_idr", 0) > 0:
+                    if st.button(f"Get {tier_name}", key=f"get_{tier_name}"):
+                        st.info("🔗 Visit: https://aigem2.com/pricing (Coming soon)")
+    
+    def _render_plugin(self, plugin_id: str, t):
+        """Load and render plugin"""
+        
+        # Check access
+        if not self.plugin_manager.can_access_plugin(plugin_id):
+            st.error(f"🔒 This feature requires {self.plugin_manager.get_plugin_tier(plugin_id)} tier or higher.")
+            
+            if st.button("⭐ Upgrade Now"):
+                st.session_state.current_page = "upgrade"
+                st.rerun()
             return
         
-        # Load module dynamically
-        try:
-            if module_id == "dashboard":
-                from ui.pages.dashboard import DashboardPage
-                module = DashboardPage(self.config, self.tier)
+        # Load plugin
+        with st.spinner(f"Loading {plugin_id}..."):
+            plugin = self.plugin_manager.load_plugin(plugin_id)
             
-            elif module_id == "knowledge_base":
-                from modules.knowledge_base.main import KnowledgeBaseModule
-                module = KnowledgeBaseModule(self.config, self.tier)
-            
-            elif module_id == "video_downloader":
-                if not self._has_access("STARTER"):
-                    self._show_upgrade_prompt("STARTER")
-                    return
-                from modules.video_downloader.main import VideoDownloaderModule
-                module = VideoDownloaderModule(self.config, self.tier)
-            
-            elif module_id == "settings":
-                from ui.pages.settings import SettingsPage
-                module = SettingsPage(self.config, self.tier)
-            
+            if plugin:
+                plugin.render_ui(t)
             else:
-                st.warning(f"Module '{module_id}' not yet implemented")
-                return
-            
-            # Cache module
-            self.modules_loaded[module_id] = module
-            
-            # Render
-            module.render()
-            
-        except Exception as e:
-            st.error(f"Error loading module: {e}")
-    
-    def _show_upgrade_prompt(self, tier_required: str):
-        """Show upgrade prompt for locked features"""
-        tier_config = self.config.get_tier_config(tier_required)
-        price_idr = tier_config.get('price_idr', 0)
-        
-        st.warning(f"🔒 This feature requires **{tier_required}** tier")
-        
-        st.info(f"""
-        **Upgrade to {tier_required}**
-        
-        Price: Rp {price_idr:,}/year
-        
-        Features unlocked:
-        - Unlimited video downloads
-        - Full transcription
-        - Subtitle generator
-        - And more!
-        """)
-        
-        if st.button("🚀 Upgrade Now", type="primary"):
-            st.session_state.current_module = "upgrade"
-            st.rerun()\n    
-    def _load_module(self, module_id: str):
-        """Lazy load module on demand"""
-        # Check if already loaded
-        if module_id in self.modules_loaded:
-            module = self.modules_loaded[module_id]
-            module.render()
-            return
-        
-        # Load module dynamically
-        try:
-            if module_id == "dashboard":
-                from ui.pages.dashboard import DashboardPage
-                module = DashboardPage(self.config, self.tier)
-            
-            elif module_id == "knowledge_base":
-                from modules.knowledge_base.main import KnowledgeBaseModule
-                module = KnowledgeBaseModule(self.config, self.tier)
-            
-            elif module_id == "video_downloader":
-                if not self._has_access("STARTER"):
-                    self._show_upgrade_prompt("STARTER")
-                    return
-                from modules.video_downloader.main import VideoDownloaderModule
-                module = VideoDownloaderModule(self.config, self.tier)
-            
-            elif module_id == "settings":
-                from ui.pages.settings import SettingsPage
-                module = SettingsPage(self.config, self.tier)
-            
-            else:
-                st.warning(f"Module '{module_id}' not yet implemented")
-                return
-            
-            # Cache module
-            self.modules_loaded[module_id] = module
-            
-            # Render
-            module.render()
-            
-        except Exception as e:
-            st.error(f"Error loading module: {e}")
+                st.error(f"Failed to load plugin: {plugin_id}")

@@ -1,0 +1,11 @@
+{
+  "id": "knowledge_base",
+  "name": "Knowledge Base",
+  "version": "1.0.0",
+  "description": "Note-taking and knowledge management system",
+  "tier_required": "FREE",
+  "entry_point": "ui.py:KnowledgeBaseUI",
+  "dependencies": [],
+  "author": "AIGEM2 Team",
+  "icon": "📚"
+}

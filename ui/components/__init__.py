@@ -1,1 +1,1 @@
-"""AIGEM2 UI Components"""
+"""UI Components"""

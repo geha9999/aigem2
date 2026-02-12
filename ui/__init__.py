@@ -1,1 +1,1 @@
-"""AIGEM2 UI Framework"""
+"""AIGEM2 UI Components"""
